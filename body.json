@@ -1,0 +1,6 @@
+{
+  "code": "from manim import *\nclass GeneratedScene(Scene):\n    def construct(self):\n        t = MathTex('E=mc^2')\n        self.play(Write(t))\n        self.wait(1)",
+  "scene": "GeneratedScene",
+  "format": "mp4",
+  "quality": "ql"
+}

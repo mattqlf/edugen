@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EduGen</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --panel: #f8fafc;
+        --muted: #64748b;
+        --text: #0f172a;
+        --accent: #22c55e;
+        --ok: #16a34a;
+        --warn: #b45309;
+        --err: #b91c1c;
+        --border: #e2e8f0;
+        --font-body: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --font-size: 14px;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px dashed var(--border);
+        background: var(--bg);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      header h1 {
+        font-size: 16px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .key-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .key-controls input, .key-controls select {
+        width: 260px;
+        padding: 8px 10px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        outline: none;
+      }
+      .key-controls button {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--panel);
+        color: var(--text);
+        cursor: pointer;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        height: calc(100vh - 56px);
+      }
+      .pane {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .pane header { background: transparent; border: none; border-bottom: 1px dashed var(--border); padding: 8px 12px; }
+      .editor {
+        width: 100%;
+        height: 100%;
+        border: none;
+        resize: none;
+        outline: none;
+        padding: 14px;
+        background: var(--panel);
+        color: var(--text);
+        font-size: var(--font-size);
+        line-height: 1.5;
+        font-family: var(--font-body);
+      }
+      .preview {
+        overflow: auto;
+        padding: 16px 20px 80px 20px;
+        background: var(--panel);
+        font-size: var(--font-size);
+        font-family: var(--font-body);
+      }
+      .statusbar {
+        position: fixed;
+        bottom: 10px;
+        left: 16px;
+        right: 16px;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        backdrop-filter: blur(6px);
+        font-size: 12px;
+      }
+      .chip { padding: 2px 8px; border-radius: 999px; border: 1px dashed var(--border); background: var(--panel); color: var(--muted); }
+      .chip.ok { color: var(--ok); border-color: #064e3b; }
+      .chip.warn { color: var(--warn); border-color: #4a3005; }
+      .chip.err { color: var(--err); border-color: #4c0519; }
+      .help { color: var(--muted); font-size: 12px; margin-top: 6px; }
+      .help kbd { background: #f1f5f9; border: 1px solid var(--border); border-bottom-color: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: var(--text); }
+      .rendered img { max-width: 100%; height: auto; }
+      .rendered video { max-width: 100%; }
+      .rendered pre code { font-size: 12px; }
+      .result-placeholder { color: var(--muted); font-style: italic; }
+      .commands { color: var(--muted); font-size: 12px; }
+      .commands code { color: var(--text); }
+
+      /* Resizable media containers for images/videos */
+      .media { display: inline-block; max-width: 100%; }
+      .resizable { position: relative; resize: horizontal; overflow: hidden; border: 1px dashed var(--border); border-radius: 6px; padding: 4px; background: #f8fafc; min-width: 120px; }
+      .resizable > img, .resizable > video { width: 100%; height: auto; display: block; }
+      .hint { color: var(--muted); font-size: 11px; }
+      .save-btn { position: absolute; top: 6px; right: 6px; background: transparent; color: var(--accent); border: 1px dashed var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
+
+      /* Toast notifications */
+      .toasts { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+      .toast { background: rgba(255,255,255,0.96); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; }
+      .toast.ok { border-color: #064e3b; }
+      .toast.warn { border-color: #4a3005; }
+      .toast.err { border-color: #4c0519; }
+      .toast .actions { margin-left: auto; display: flex; gap: 6px; }
+      .btn { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>EduGen</h1>
+      <div class="key-controls">
+        <button id="exportMd" title="Download Markdown">Export .md</button>
+        <button id="shareBtn" title="Create share link">Share</button>
+        <select id="fontFamily" title="Font">
+          <option value="mono" selected>Mono</option>
+          <option value="sans">Sans</option>
+          <option value="serif">Serif</option>
+        </select>
+        <label class="help" for="fontSize" style="display:flex;align-items:center;gap:6px;">
+          Size <input id="fontSize" type="range" min="12" max="22" step="1" value="14" style="width:120px"/>
+          <span id="fontSizeOut" class="chip">14px</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="container">
+      <section class="pane">
+        <header>
+          <div>
+            <strong>Editor</strong>
+            <div class="help">
+              Commands: <span class="commands">
+                <code>/text-gen: prompt</code>,
+                <code>/image-gen: prompt</code>,
+                <code>/video-gen: prompt</code>,
+                <code>/interactive-gen: prompt</code>,
+                <code>/manim-gen: prompt</code>,
+                <code>/asy-gen: prompt</code>
+              </span>
+              — Press <kbd>Enter</kbd> at the end of a command line to run. Drag the right edge of images/videos to resize.
+            </div>
+          </div>
+        </header>
+        <textarea id="editor" class="editor" spellcheck="false"></textarea>
+      </section>
+      <section class="pane">
+        <header><strong>Preview</strong></header>
+        <div id="preview" class="preview rendered"></div>
+      </section>
+    </div>
+
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="statusbar">
+      <span class="chip" id="genStatus">Idle</span>
+      <span id="statusMsg" class="help"></span>
+    </div>
+
+    <!-- Marked for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$','$$'], ['\\[','\\]']],
+          processEscapes: true,
+          tags: 'ams'
+        },
+        options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] },
+        svg: { fontCache: 'global' }
+      };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <script type="module">
+      // Server-first: all model calls go to our backend APIs.
+
+      // State
+      const editor = document.getElementById('editor');
+      const preview = document.getElementById('preview');
+      const genStatus = document.getElementById('genStatus');
+      const statusMsg = document.getElementById('statusMsg');
+      const fontFamilySel = document.getElementById('fontFamily');
+      const fontSizeRange = document.getElementById('fontSize');
+      const fontSizeOut = document.getElementById('fontSizeOut');
+      
+      let inFlight = new Map(); // placeholderId -> { kind, prompt }
+
+      // In-memory registries for generated assets to avoid dumping base64 into the editor
+      const imageRegistry = new Map(); // label -> { url, blob, mime }
+      const videoRegistry = new Map(); // label -> { url, blob, mime }
+      let imageCounter = 0;
+      let videoCounter = 0;
+      const interactiveRegistry = new Map();
+      let interactiveCounter = 0;
+      const INTERACTIVE_KEY = 'INTERACTIVE_REG_V1';
+
+      function setStatus(text, kind = 'ok') {
+        genStatus.textContent = text;
+        genStatus.className = 'chip ' + (kind === 'ok' ? 'ok' : kind === 'warn' ? 'warn' : kind === 'err' ? 'err' : '');
+      }
+
+      function setMsg(text) {
+        statusMsg.textContent = text || '';
+      }
+
+      // Utilities: escape HTML and attributes without relying on replaceAll
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+      
+      // No client key. All generation goes through server APIs.
+
+      // Load font prefs
+      const storedFont = localStorage.getItem('EDITOR_FONT_FAMILY') || 'mono';
+      const storedSize = parseInt(localStorage.getItem('EDITOR_FONT_SIZE') || '14', 10);
+      fontFamilySel.value = storedFont;
+      fontSizeRange.value = String(storedSize);
+      fontSizeOut.textContent = `${storedSize}px`;
+      applyFontSettings(storedFont, storedSize);
+
+      // Removed client key UI — secrets are server-side.
+
+      // Persisted interactive registry
+      function loadInteractiveRegistry() {
+        try {
+          const raw = localStorage.getItem(INTERACTIVE_KEY);
+          if (!raw) return;
+          const obj = JSON.parse(raw);
+          if (obj && typeof obj === 'object') {
+            for (const k of Object.keys(obj)) {
+              const v = obj[k];
+              if (typeof v === 'string' && v.length) interactiveRegistry.set(k, v);
+            }
+          }
+        } catch (_) {}
+      }
+      function saveInteractiveRegistry() {
+        try {
+          const obj = Object.fromEntries(interactiveRegistry.entries());
+          localStorage.setItem(INTERACTIVE_KEY, JSON.stringify(obj));
+        } catch (_) {}
+      }
+      loadInteractiveRegistry();
+
+      // Export Markdown
+      document.getElementById('exportMd').addEventListener('click', () => {
+        const md = editor.value || '';
+        downloadBlob(new Blob([md], { type: 'text/markdown' }), 'document.md');
+      });
+
+      // Share: bundle markdown + generated assets and upload to server
+      document.getElementById('shareBtn').addEventListener('click', async () => {
+        try {
+          setStatus('Sharing…', 'warn');
+          setMsg('Bundling assets into share payload…');
+          const payload = await buildSharePayload();
+          setMsg('Uploading…');
+          const r = await fetch('/api/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!r.ok) throw new Error(`Share API error: ${r.status}`);
+          const j = await r.json();
+          const url = String(j.url || '');
+          if (url) {
+            const copied = await copyToClipboard(url);
+            setStatus('Shared', 'ok');
+            setMsg(copied ? 'Link copied to clipboard' : 'Share created');
+            showShareToast(url, copied);
+          } else {
+            setStatus('Shared', 'ok');
+            setMsg('Share created');
+            showToast('Share created', 'ok');
+          }
+        } catch (e) {
+          setStatus('Error', 'err');
+          setMsg('Failed to create share: ' + (e?.message || e));
+          showToast('Failed to create share: ' + escapeHtml(e?.message || e), 'err');
+        }
+      });
+
+      // Markdown rendering (interactive handled via tokens in expandEmbeds)
+      const renderer = new marked.Renderer();
+      renderer.code = (code, infoString) => `<pre><code>${escapeHtml(String(code))}</code></pre>`;
+
+
+      let lastHtml = '';
+      function renderPreview() {
+        try {
+          const md = expandEmbeds(editor.value);
+          const html = marked.parse(md, { renderer, gfm: true, breaks: true, mangle: false, headerIds: false });
+          if (html === lastHtml) return;
+          const prevTop = preview.scrollTop;
+          const prevLeft = preview.scrollLeft;
+          // Reconcile interactive iframes so they don't reload on each render
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          const newBoxes = tmp.querySelectorAll('.media.resizable[data-media]');
+          for (const newBox of newBoxes) {
+            const label = newBox.getAttribute('data-media');
+            if (!label) continue;
+            const oldBox = preview.querySelector(`.media.resizable[data-media="${esc(label)}"]`);
+            if (oldBox && oldBox.parentNode) newBox.replaceWith(oldBox);
+          }
+          // Replace DOM with reconciled content
+          preview.replaceChildren(...tmp.childNodes);
+          hydrateInteractiveIframes();
+          attachMediaHandlers();
+          preview.scrollTop = prevTop;
+          preview.scrollLeft = prevLeft;
+          if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetClear && window.MathJax.typesetClear([preview]);
+            window.MathJax.typesetPromise([preview])
+              .then(() => {
+                preview.scrollTop = prevTop;
+                preview.scrollLeft = prevLeft;
+              })
+              .catch(() => {});
+          }
+          lastHtml = html;
+        } catch (e) {
+          const msg = (e && (e.message || e.stack)) ? (e.message || e.stack) : String(e);
+          preview.innerHTML = `<div style=\"color: var(--err)\">Render error: ${escapeHtml(msg)}</div>`;
+        }
+      }
+
+      function hydrateInteractiveIframes() {
+        const iframes = preview.querySelectorAll('iframe[data-iv], iframe[data-iv-label]');
+        for (const iframe of iframes) {
+          try {
+            if (iframe.__hydrated) continue;
+            const id = iframe.getAttribute('data-iv');
+            const label = iframe.getAttribute('data-iv-label');
+            const html = interactiveRegistry.get(id || label);
+            if (html) {
+              iframe.srcdoc = html;
+              iframe.__hydrated = true;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Allow resizing of generated images/videos using CSS resize and persist width across renders and reloads
+      const MEDIA_SIZES_KEY = 'MEDIA_SIZES_V1';
+      const mediaSizeRegistry = new Map(); // label -> width px
+      let mediaResizeObserver = null;
+      function ensureMediaResizeObserver() {
+        if (mediaResizeObserver) return mediaResizeObserver;
+        if (typeof ResizeObserver === 'undefined') return null;
+        mediaResizeObserver = new ResizeObserver((entries) => {
+          let changed = false;
+          for (const entry of entries) {
+            try {
+              const box = entry.target;
+              const label = box.getAttribute('data-media');
+              if (!label) continue;
+              const w = Math.round(entry.contentRect.width);
+              if (!w || !isFinite(w)) continue;
+              const cur = mediaSizeRegistry.get(label);
+              if (cur !== w) {
+                mediaSizeRegistry.set(label, w);
+                changed = true;
+              }
+            } catch (_) {}
+          }
+          if (changed) saveMediaSizes();
+        });
+        return mediaResizeObserver;
+      }
+      function loadMediaSizes() {
+        try {
+          const raw = localStorage.getItem(MEDIA_SIZES_KEY);
+          if (!raw) return;
+          const obj = JSON.parse(raw);
+          for (const k of Object.keys(obj || {})) {
+            const v = obj[k];
+            if (typeof v === 'number' && isFinite(v) && v > 0) mediaSizeRegistry.set(k, v);
+          }
+        } catch (_) {}
+      }
+      function saveMediaSizes() {
+        try {
+          const obj = Object.fromEntries(mediaSizeRegistry.entries());
+          localStorage.setItem(MEDIA_SIZES_KEY, JSON.stringify(obj));
+        } catch (_) {}
+      }
+      loadMediaSizes();
+      function attachMediaHandlers() {
+        const boxes = preview.querySelectorAll('.resizable[data-media]');
+        for (const box of boxes) {
+          const label = box.getAttribute('data-media');
+          if (!label) continue;
+          const saved = mediaSizeRegistry.get(label);
+          if (saved && !box.style.width) box.style.width = saved + 'px';
+          if (box.__bound) continue;
+          box.__bound = true;
+          // Fallback save on mouseup (in case ResizeObserver is unavailable)
+          box.addEventListener('mouseup', () => {
+            const rect = box.getBoundingClientRect();
+            const w = Math.round(rect.width);
+            if (w && isFinite(w)) {
+              mediaSizeRegistry.set(label, w);
+              saveMediaSizes();
+            }
+          });
+          box.addEventListener('dblclick', () => {
+            box.style.width = '';
+            mediaSizeRegistry.delete(label);
+            saveMediaSizes();
+          });
+          const ro = ensureMediaResizeObserver();
+          if (ro) ro.observe(box);
+        }
+        // Attach save handlers
+        const saves = preview.querySelectorAll('.save-btn');
+        for (const btn of saves) {
+          if (btn.__bound) continue;
+          btn.__bound = true;
+          btn.addEventListener('click', () => {
+            const label = btn.getAttribute('data-save');
+            const iv = btn.getAttribute('data-iv-label');
+            if (label) {
+              const img = imageRegistry.get(label);
+              const vid = videoRegistry.get(label);
+              if (img) {
+                const mime = (img.mime || '').toLowerCase();
+                const ext = mime.includes('svg') ? 'svg' : mime.includes('png') ? 'png' : 'img';
+                return downloadBlob(img.blob, `${label.replace(/\s+/g,'_').toLowerCase()}.${ext}`);
+              }
+              if (vid) return downloadBlob(vid.blob, `${label.replace(/\s+/g,'_').toLowerCase()}.mp4`);
+            }
+            if (iv) {
+              const html = interactiveRegistry.get(iv);
+              if (html) return downloadBlob(new Blob([html], { type: 'text/html' }), `${iv.replace(/\s+/g,'_').toLowerCase()}.html`);
+            }
+          });
+        }
+      }
+
+      function downloadBlob(blob, filename) {
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+      }
+
+      async function copyToClipboard(text) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch (_) {}
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          return !!ok;
+        } catch (_) { return false; }
+      }
+
+      function blobToDataURL(blob) {
+        return new Promise((resolve, reject) => {
+          try {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error('read error'));
+            reader.readAsDataURL(blob);
+          } catch (e) { reject(e); }
+        });
+      }
+
+      async function buildSharePayload() {
+        const imagesObj = {};
+        for (const [label, info] of imageRegistry.entries()) {
+          try { imagesObj[label] = await blobToDataURL(info.blob); } catch (_) {}
+        }
+        const videosObj = {};
+        for (const [label, info] of videoRegistry.entries()) {
+          try { videosObj[label] = await blobToDataURL(info.blob); } catch (_) {}
+        }
+        const interactiveObj = Object.fromEntries(interactiveRegistry.entries());
+        const sizesObj = Object.fromEntries(mediaSizeRegistry.entries());
+        return { md: editor.value || '', images: imagesObj, videos: videosObj, interactive: interactiveObj, sizes: sizesObj };
+      }
+
+      function showToast(message, kind = 'ok', durationMs = 6000) {
+        const tray = document.getElementById('toasts');
+        const el = document.createElement('div');
+        el.className = 'toast ' + (kind || 'ok');
+        el.innerHTML = `<span>${message}</span>`;
+        tray.appendChild(el);
+        const timer = setTimeout(() => el.remove(), durationMs);
+        el.addEventListener('click', () => { clearTimeout(timer); el.remove(); });
+      }
+
+      function showShareToast(url, copied) {
+        const tray = document.getElementById('toasts');
+        const el = document.createElement('div');
+        el.className = 'toast ok';
+        const txt = copied ? 'Link copied to clipboard' : 'Share link ready';
+        el.innerHTML = `<span>${txt}</span>`;
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const open = document.createElement('a');
+        open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer';
+        open.textContent = 'Open'; open.className = 'btn';
+        const copy = document.createElement('button');
+        copy.textContent = 'Copy'; copy.className = 'btn';
+        copy.addEventListener('click', async (e) => { e.stopPropagation(); await copyToClipboard(url); });
+        actions.appendChild(open);
+        actions.appendChild(copy);
+        el.appendChild(actions);
+        tray.appendChild(el);
+        const timer = setTimeout(() => el.remove(), 8000);
+        el.addEventListener('click', () => { clearTimeout(timer); el.remove(); });
+      }
+
+      // Debounced preview rendering to reduce flicker while typing
+      let renderTimer = null;
+      editor.addEventListener('input', () => {
+        if (renderTimer) clearTimeout(renderTimer);
+        renderTimer = setTimeout(renderPreview, 250);
+      });
+
+      // Keyboard shortcuts: Bold (Cmd/Ctrl+B) and Italic (Cmd/Ctrl+I)
+      editor.addEventListener('keydown', (e) => {
+        const mod = e.metaKey || e.ctrlKey;
+        if (!mod || e.shiftKey || e.altKey) return;
+        const k = e.key.toLowerCase();
+        if (k === 'b') {
+          e.preventDefault();
+          toggleInlineStyle('**');
+        } else if (k === 'i') {
+          e.preventDefault();
+          toggleInlineStyle('*');
+        }
+      });
+
+      function toggleInlineStyle(marker) {
+        const el = editor;
+        let start = el.selectionStart;
+        let end = el.selectionEnd;
+        const value = el.value;
+        // If no selection, expand to word; if still empty, insert markers and place caret
+        if (start === end) {
+          const { s, e } = expandToWord(value, start);
+          start = s; end = e;
+        }
+        const before = value.slice(0, start);
+        const sel = value.slice(start, end);
+        const after = value.slice(end);
+
+        // If already wrapped with marker, unwrap
+        const hasPrefix = before.endsWith(marker);
+        const hasSuffix = after.startsWith(marker);
+        if (hasPrefix && hasSuffix) {
+          const newBefore = before.slice(0, before.length - marker.length);
+          const newAfter = after.slice(marker.length);
+          el.value = newBefore + sel + newAfter;
+          const pos = newBefore.length + sel.length;
+          el.selectionStart = newBefore.length;
+          el.selectionEnd = pos;
+        } else {
+          // Wrap selection
+          el.value = before + marker + sel + marker + after;
+          el.selectionStart = before.length + marker.length;
+          el.selectionEnd = before.length + marker.length + sel.length;
+        }
+        el.focus();
+        renderPreview();
+      }
+
+      function expandToWord(text, pos) {
+        if (!text) return { s: pos, e: pos };
+        let s = pos, e = pos;
+        const isWord = (c) => /[\w`~!@$%^&*()\-+=\[\]{};:',.\/\\?|<>]/.test(c);
+        while (s > 0 && isWord(text[s - 1])) s--;
+        while (e < text.length && isWord(text[e])) e++;
+        if (s === e) return { s: pos, e: pos };
+        return { s, e };
+      }
+
+      // Font settings
+      function applyFontSettings(kind, sizePx) {
+        const root = document.documentElement;
+        const family = kind === 'sans'
+          ? 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"'
+          : kind === 'serif'
+          ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif'
+          : 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+        root.style.setProperty('--font-body', family);
+        root.style.setProperty('--font-size', `${sizePx}px`);
+      }
+      fontFamilySel.addEventListener('change', () => {
+        const kind = fontFamilySel.value;
+        const size = parseInt(fontSizeRange.value, 10);
+        localStorage.setItem('EDITOR_FONT_FAMILY', kind);
+        applyFontSettings(kind, size);
+      });
+      fontSizeRange.addEventListener('input', () => {
+        const size = parseInt(fontSizeRange.value, 10);
+        fontSizeOut.textContent = `${size}px`;
+        localStorage.setItem('EDITOR_FONT_SIZE', String(size));
+        applyFontSettings(fontFamilySel.value, size);
+      });
+
+      function uid() { return 'GEN_' + Math.random().toString(36).slice(2, 10); }
+
+      function getLineBounds(value, cursor) {
+        const start = value.lastIndexOf('\n', cursor - 1) + 1;
+        const endIdx = value.indexOf('\n', cursor);
+        const end = endIdx === -1 ? value.length : endIdx;
+        return { start, end };
+      }
+
+      const CMD_RE = /^\s*\/\s*(text-gen|image-gen|video-gen|interactive-gen|manim-gen|asy-gen)\s*:\s*(\{?[\s\S]*?\}?)\s*$/i;
+
+      editor.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        const value = editor.value;
+        const cursor = editor.selectionStart;
+        const { start, end } = getLineBounds(value, cursor);
+        const line = value.slice(start, end);
+        const match = line.match(CMD_RE);
+        if (!match) return; // normal newline
+
+        e.preventDefault();
+
+        // Parse command
+        const kind = match[1].toLowerCase();
+        let prompt = match[2].trim();
+        if (prompt.startsWith('{') && prompt.endsWith('}')) {
+          prompt = prompt.slice(1, -1);
+        }
+        prompt = prompt.trim();
+
+        const ph = uid();
+        const placeholderText = `[[${ph}]]`;
+        const newValue = value.slice(0, start) + placeholderText + value.slice(end);
+        editor.value = newValue + '\n';
+        renderPreview();
+        placeCaretAt(editor, start + placeholderText.length + 1);
+
+        setStatus('Working…', 'warn');
+        setMsg(`${kind} → ${prompt.slice(0, 64)}${prompt.length > 64 ? '…' : ''}`);
+        inFlight.set(ph, { kind, prompt });
+
+        try {
+          let replacement = '';
+          if (kind === 'text-gen') {
+            replacement = await runTextGen(prompt);
+          } else if (kind === 'image-gen') {
+            replacement = await runImageGen(prompt);
+          } else if (kind === 'video-gen') {
+            replacement = await runVideoGen(prompt);
+          } else if (kind === 'interactive-gen') {
+            replacement = await runInteractiveGen(prompt);
+          } else if (kind === 'manim-gen') {
+            replacement = await runManimGen(prompt);
+          } else if (kind === 'asy-gen') {
+            replacement = await runAsyGen(prompt);
+          }
+
+          replacePlaceholder(ph, replacement);
+          setStatus('Done', 'ok');
+          setMsg('');
+        } catch (err) {
+          console.error(err);
+          replacePlaceholder(ph, `> Generation failed: ${escapeMd(err?.message || err)}`);
+          setStatus('Error', 'err');
+          setMsg(err?.message || 'Unknown error');
+        } finally {
+          inFlight.delete(ph);
+        }
+      });
+
+      function placeCaretAt(textarea, pos) {
+        textarea.selectionStart = textarea.selectionEnd = pos;
+        textarea.focus();
+      }
+
+      function replacePlaceholder(ph, content) {
+        const token = `[[${ph}]]`;
+        const idx = editor.value.indexOf(token);
+        if (idx === -1) return;
+        editor.value = editor.value.slice(0, idx) + content + editor.value.slice(idx + token.length);
+        renderPreview();
+      }
+
+      function escapeMd(s) {
+        return String(s).replace(/[\\`*_{}\[\]<>#+\-!.|]/g, '\\$&');
+      }
+
+      // Gemini integrations
+      async function runTextGen(prompt) {
+        const r = await fetch('/api/gen-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        if (!r.ok) throw new Error(`Text API error: ${r.status}`);
+        const j = await r.json();
+        return j.text || '> (no text)';
+      }
+
+      async function runImageGen(prompt) {
+        const r = await fetch('/api/gen-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        if (!r.ok) throw new Error(`Image API error: ${r.status}`);
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const label = `Image ${++imageCounter}`;
+        imageRegistry.set(label, { url, blob, mime: blob.type || 'image/png' });
+        return `[${label}]`;
+      }
+
+      async function runVideoGen(prompt) {
+        const r = await fetch('/api/gen-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        if (!r.ok) throw new Error(`Video API error: ${r.status}`);
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const label = `Video ${++videoCounter}`;
+        videoRegistry.set(label, { url, blob, mime: blob.type || 'video/mp4' });
+        return `[${label}]`;
+      }
+
+      // /manim-gen: generate Manim Python code with Gemini, optionally render via backend service, then insert token
+      async function runManimGen(prompt) {
+        const instruction = `You are to output ONLY Python code for Manim Community (manim) with the following constraints:
+- Use 'from manim import *'.
+- Define exactly one scene class named GeneratedScene(Scene) with a construct() method.
+- No external assets, no file I/O, no internet.
+- Keep it clear and minimal; 10–60 lines.
+Prompt: ${prompt}`;
+        const tr = await fetch('/api/gen-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: instruction })
+        });
+        if (!tr.ok) throw new Error(`Text API error: ${tr.status}`);
+        const tj = await tr.json();
+        let py = String(tj?.text || '');
+        const fenced = extractFirstCodeBlock(py);
+        if (fenced) py = fenced.code;
+        py = py.trim();
+        if (!py) throw new Error('No Manim code returned');
+
+        // Prefer server proxy if deployed on Vercel (backed by MANIM_SERVICE_URL)
+        try {
+          const res = await fetch('/api/manim-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: py, scene: 'GeneratedScene', format: 'mp4', quality: 'ql' })
+          });
+          if (!res.ok) throw new Error(`Manim proxy error: ${res.status} ${res.statusText}`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const label = `Manim ${++videoCounter}`;
+          videoRegistry.set(label, { url, blob, mime: blob.type || 'video/mp4' });
+          return `[${label}]`;
+        } catch (err) {
+          console.warn('Manim render failed; inserting code block instead.', err);
+          const reason = (err && (err.message || err.statusText)) ? (err.message || err.statusText) : 'unknown error';
+          const hint = `> Manim render failed (${escapeHtml(reason)}). Save this as scene.py and run: manim -pql scene.py GeneratedScene`;
+          return `${hint}\n\n\`\`\`python\n${py}\n\`\`\``;
+        }
+      }
+
+      // /asy-gen: generate Asymptote code, render to PNG via backend service, then insert token as an image
+      async function runAsyGen(prompt) {
+        const instruction = `You are to output ONLY valid Asymptote code (.asy) with the following constraints:\n- No external files or internet.\n- Self-contained; 10–60 lines.\n- Produce a clear diagram suitable at ~1000px width.\nPrompt: ${prompt}`;
+        const tr = await fetch('/api/gen-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: instruction })
+        });
+        if (!tr.ok) throw new Error(`Text API error: ${tr.status}`);
+        const tj = await tr.json();
+        let asy = String(tj?.text || '');
+        const fenced = extractFirstCodeBlock(asy);
+        if (fenced) asy = fenced.code;
+        asy = asy.trim();
+        if (!asy) throw new Error('No Asymptote code returned');
+
+        try {
+          const res = await fetch('/api/asy-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: asy, format: 'svg' })
+          });
+          if (!res.ok) {
+            let details = '';
+            try {
+              const ct = res.headers.get('content-type') || '';
+              if (ct.includes('application/json')) {
+                const j = await res.json();
+                details = JSON.stringify(j);
+              } else {
+                details = await res.text();
+              }
+            } catch (_) {}
+            const err = new Error(`Asymptote proxy error: ${res.status}`);
+            err.details = details;
+            throw err;
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const label = `Asy ${++imageCounter}`;
+          imageRegistry.set(label, { url, blob, mime: (blob.type || 'image/svg+xml') });
+          return `[${label}]`;
+        } catch (err) {
+          console.warn('Asymptote render failed; inserting code block instead.', err);
+          const reason = (err && (err.details || err.message || err.statusText)) ? (err.details || err.message || err.statusText) : 'unknown error';
+          const hint = `> Asymptote render failed. Save as main.asy and run: asy -f svg -o out.svg main.asy`;
+          const det = typeof reason === 'string' ? reason : JSON.stringify(reason);
+          return `${hint}\n\n<details><summary>Error details</summary>\n\n\`\`\`json\n${escapeHtml(det)}\n\`\`\`\n\n</details>\n\n\`\`\`asy\n${asy}\n\`\`\``;
+        }
+      }
+
+
+      async function runInteractiveGen(prompt) {
+        const instruction = `Task: Produce a compact, runnable interactive snippet.
+Constraints:
+- Output ONLY the snippet content (no Markdown, no backticks).
+- Do NOT include <!doctype>, <html>, <head>, or <body> tags.
+- Single self-contained snippet using inline <style> and a single <script>.
+- No external libraries, no fetch/network, no imports.
+- Keep it under ~60 lines if possible and minimal.
+- Make it interactive and visually clear in a small 260px tall area.
+Prompt: ${prompt}`;
+        const tr = await fetch('/api/gen-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: instruction })
+        });
+        if (!tr.ok) throw new Error(`Text API error: ${tr.status}`);
+        const tj = await tr.json();
+        let code = String(tj?.text || '');
+        // If the model returns Markdown code fences, try to extract
+        const fenced = extractFirstCodeBlock(code);
+        if (fenced) code = fenced.code;
+        if (!code.trim()) throw new Error('No interactive code returned');
+        code = shrinkInteractive(code);
+        const srcdoc = buildInteractiveSrcdoc(code.trim());
+        const label = `Interactive ${++interactiveCounter}`;
+        interactiveRegistry.set(label, srcdoc);
+        saveInteractiveRegistry();
+        return `[${label}]`;
+      }
+
+      function extractFirstCodeBlock(text) {
+        const re = /```(\w+)?\n([\s\S]*?)```/m;
+        const m = text.match(re);
+        if (m) return { lang: m[1] || '', code: m[2] };
+        return null;
+      }
+
+      
+
+      function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+      // no download fallbacks: use signed video URI directly per latest SDK docs
+
+      function b64ToBlob(b64, type = 'application/octet-stream') {
+        const bin = atob(b64);
+        const len = bin.length;
+        const arr = new Uint8Array(len);
+        for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+        return new Blob([arr], { type });
+      }
+
+      // Expand short tokens like [Image 1] and [Video 1] into real embeds for preview only.
+      function expandEmbeds(text) {
+        const imgRe = /\[(Image\s+\d+)\]/g;
+        const vidRe = /\[(Video\s+\d+)\]/g;
+        const manRe = /\[(Manim\s+\d+)\]/g;
+        const asyRe = /\[(Asy\s+\d+)\]/g;
+        const ivRe  = /\[(Interactive\s+\d+)\]/g;
+        let out = text.replace(imgRe, (m, label) => {
+          const rec = imageRegistry.get(label);
+          const url = rec?.url;
+          if (!url) return `<span class="result-placeholder">[${label} unavailable]</span>`;
+          return `<div class=\"media resizable\" data-media=\"${label}\"><img alt=\"${label}\" src=\"${url}\"><button class=\"save-btn\" data-save=\"${label}\">Save</button></div>`;
+        });
+        out = out.replace(vidRe, (m, label) => {
+          const rec = videoRegistry.get(label);
+          const url = rec?.url;
+          if (!url) return `<span class=\"result-placeholder\">[${label} unavailable]</span>`;
+          return `<div class=\"media resizable\" data-media=\"${label}\"><video controls src=\"${url}\"></video><button class=\"save-btn\" data-save=\"${label}\">Save</button></div>`;
+        });
+        out = out.replace(manRe, (m, label) => {
+          const rec = videoRegistry.get(label);
+          const url = rec?.url;
+          if (!url) return `<span class=\"result-placeholder\">[${label} unavailable]</span>`;
+          return `<div class=\"media resizable\" data-media=\"${label}\"><video controls src=\"${url}\"></video><button class=\"save-btn\" data-save=\"${label}\">Save</button></div>`;
+        });
+        out = out.replace(asyRe, (m, label) => {
+          const rec = imageRegistry.get(label);
+          const url = rec?.url;
+          if (!url) return `<span class=\"result-placeholder\">[${label} unavailable]</span>`;
+          return `<div class=\"media resizable\" data-media=\"${label}\"><img alt=\"${label}\" src=\"${url}\"><button class=\"save-btn\" data-save=\"${label}\">Save</button></div>`;
+        });
+        out = out.replace(ivRe, (m, label) => {
+          const has = interactiveRegistry.has(label);
+          if (!has) return `<span class="result-placeholder">[${label} unavailable]</span>`;
+          return `<div class=\"media resizable\" data-media=\"${label}\"><iframe sandbox=\"allow-scripts allow-modals allow-popups\" style=\"width:100%;height:260px;border:1px solid var(--border);border-radius:6px;background:var(--panel);\" data-iv-label=\"${label}\"></iframe><button class=\"save-btn\" data-iv-label=\"${label}\">Save</button></div>`;
+        });
+        return out;
+      }
+
+      // Build iframe srcdoc with error reporting wrapper and minimal boilerplate
+      function buildInteractiveSrcdoc(snippet) {
+        const code = shrinkInteractive(snippet);
+        return `<!doctype html><html><head>
+  <meta charset="utf-8">
+  <style>
+    :root { color-scheme: light; }
+    html,body { margin:0; padding:0; background:#ffffff; color:#111827; font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .err { position: absolute; left:8px; right:8px; bottom:8px; padding:8px 10px; background:#fee2e2; color:#7f1d1d; border:1px solid #fecaca; border-radius:6px; font-size:12px; }
+  </style>
+</head><body>
+  <div id="root"></div>
+  <script>
+    window.addEventListener('error', (ev) => {
+      const box = document.createElement('div');
+      box.className = 'err';
+      box.textContent = 'Error: ' + (ev?.message || 'Unknown error');
+      document.body.appendChild(box);
+    });
+  <\/script>
+  ${code}
+</body></html>`;
+      }
+
+      // Shrink full HTML docs to minimal snippet; ensure no <html>/<body> wrappers
+      function shrinkInteractive(raw) {
+        let code = raw.trim();
+        // Remove Markdown fences if still present
+        const fenced = extractFirstCodeBlock(code);
+        if (fenced) code = fenced.code.trim();
+        // If full HTML, extract core parts
+        const hasHtml = /<\s*html[\s>]/i.test(code) || /<\s*body[\s>]/i.test(code);
+        if (hasHtml) {
+          const bodyMatch = code.match(/<\s*body[^>]*>([\s\S]*?)<\s*\/\s*body\s*>/i);
+          const headStyles = Array.from(code.matchAll(/<\s*style[^>]*>([\s\S]*?)<\s*\/\s*style\s*>/gi)).map(m=>m[1]).join('\n');
+          const scripts = Array.from(code.matchAll(/<\s*script[^>]*>([\s\S]*?)<\s*\/\s*script\s*>/gi)).map(m=>m[1]).join('\n');
+          const body = bodyMatch ? bodyMatch[1].trim() : '';
+          code = `${headStyles ? `<style>\n${headStyles}\n<\/style>\n` : ''}${body}\n<script>\n${scripts}\n<\/script>`;
+        }
+        // If it looks like pure JS, wrap it
+        const looksJS = !/<\s*(div|canvas|svg|style|script)\b/i.test(code);
+        if (looksJS) {
+          code = `<script>\n${code}\n<\/script>`;
+        }
+        // Strip duplicate DOCTYPE/meta if any slipped in
+        code = code.replace(/<!doctype[\s\S]*?>/ig, '').replace(/<\s*html[\s\S]*?>/ig, '').replace(/<\s*\/\s*html\s*>/ig, '').trim();
+        return code;
+      }
+
+      // Seed editor with a short guide
+      editor.value = `# EduGen
+
+Type Markdown and LaTeX like $E=mc^2$. Use commands to generate content:
+
+- /text-gen: Write a haiku about the sea
+- /image-gen: A robot holding a red skateboard
+- /video-gen: A close-up of a cat blinking slowly in soft light
+- /interactive-gen: An interactive sine wave visualizer with a slider for frequency
+ - /manim-gen: Animate a square morphing into a circle with labels
+ - /asy-gen: Draw a circle with labeled axes and grid
+
+Then press Enter at the end of the command line. Results will appear here inline.
+`;
+
+      renderPreview();
+      setMsg('Server mode active.');
+    </script>
+  </body>
+</html>

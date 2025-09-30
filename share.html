@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shared Document</title>
+    <style>
+      :root {
+        --bg: #ffffff; --panel: #f8fafc; --muted: #64748b; --text: #0f172a; --accent: #22c55e; --border: #e2e8f0;
+        --font-body: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --font-size: 14px;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+      header { display:flex; justify-content: space-between; align-items:center; padding:12px 16px; border-bottom:1px dashed var(--border); background: var(--bg); }
+      header h1 { font-size: 16px; margin: 0; }
+      .content { padding: 16px 20px 40px 20px; }
+      .rendered img { max-width: 100%; height: auto; }
+      .rendered video { max-width: 100%; }
+      .chip { padding:2px 8px; border-radius:999px; border:1px dashed var(--border); color: var(--muted); }
+      .status { font-size:12px; color: var(--muted); }
+      .media { display: inline-block; max-width: 100%; }
+      .resizable { position: relative; resize: horizontal; overflow: hidden; border: 1px dashed var(--border); border-radius: 6px; padding: 4px; background: #f8fafc; }
+      .resizable > img, .resizable > video { width: 100%; height: auto; display: block; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Shared Document</h1>
+      <span class="chip" id="status">Loading…</span>
+    </header>
+    <div class="content">
+      <div id="render" class="rendered"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      window.MathJax = {
+        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], processEscapes: true, tags: 'ams' },
+        options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] },
+        svg: { fontCache: 'global' }
+      };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <script>
+      const statusEl = document.getElementById('status');
+      const container = document.getElementById('render');
+
+      function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      async function loadShare(){
+        try{
+          const url = window.location.pathname.replace(/\/$/, '') + '.json';
+          const r = await fetch(url);
+          if(!r.ok){ statusEl.textContent = 'Not found'; return; }
+          const data = await r.json();
+          renderShare(data);
+          statusEl.textContent = 'Loaded';
+        }catch(e){
+          statusEl.textContent = 'Error loading';
+        }
+      }
+
+      function expandEmbeds(md, data){
+        const { images = {}, videos = {}, interactive = {}, sizes = {} } = data || {};
+        function box(label, inner){
+          const w = sizes && sizes[label] ? ` style=\"width:${sizes[label]}px\"` : '';
+          return `<div class=\"media resizable\" data-media=\"${label}\"${w}>${inner}</div>`;
+        }
+        let out = md.replace(/\[(Image\s+\d+)\]/g, (m, label) => {
+          const src = images[label];
+          if(!src) return `<span class=\"status\">[${label} unavailable]</span>`;
+          return box(label, `<img alt=\"${label}\" src=\"${src}\">`);
+        });
+        out = out.replace(/\[(Video\s+\d+)\]/g, (m, label) => {
+          const src = videos[label];
+          if(!src) return `<span class=\"status\">[${label} unavailable]</span>`;
+          return box(label, `<video controls src=\"${src}\"></video>`);
+        });
+        out = out.replace(/\[(Manim\s+\d+)\]/g, (m, label) => {
+          const src = videos[label];
+          if(!src) return `<span class=\"status\">[${label} unavailable]</span>`;
+          return box(label, `<video controls src=\"${src}\"></video>`);
+        });
+        out = out.replace(/\[(Asy\s+\d+)\]/g, (m, label) => {
+          const src = images[label];
+          if(!src) return `<span class=\"status\">[${label} unavailable]</span>`;
+          return box(label, `<img alt=\"${label}\" src=\"${src}\">`);
+        });
+        out = out.replace(/\[(Interactive\s+\d+)\]/g, (m, label) => {
+          const html = interactive[label];
+          if(!html) return `<span class=\"status\">[${label} unavailable]</span>`;
+          // Set srcdoc after render to avoid escaping issues
+          return box(label, `<iframe sandbox=\"allow-scripts allow-modals allow-popups\" style=\"width:100%;height:260px;border:1px solid var(--border);border-radius:6px;background:var(--panel);\" data-iv-label=\"${label}\"></iframe>`);
+        });
+        return out;
+      }
+
+      function renderShare(data){
+        const md = String(data.md || '');
+        const expanded = expandEmbeds(md, data);
+        const html = marked.parse(expanded, { gfm:true, breaks:true, mangle:false, headerIds:false });
+        container.innerHTML = html;
+        hydrateInteractiveIframes(data);
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          window.MathJax.typesetPromise([container]).catch(()=>{});
+        }
+      }
+
+      function hydrateInteractiveIframes(data){
+        try{
+          const map = data && data.interactive ? data.interactive : {};
+          const iframes = container.querySelectorAll('iframe[data-iv-label]');
+          for (const iframe of iframes) {
+            const label = iframe.getAttribute('data-iv-label');
+            const html = map[label];
+            if (html) iframe.srcdoc = html;
+          }
+        }catch(_){ }
+      }
+
+      loadShare();
+    </script>
+  </body>
+  </html>

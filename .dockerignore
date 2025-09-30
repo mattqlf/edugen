@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.DS_Store
+.git
+.manim-venv
+manim-service
+**/*.mp4
+**/*.gif
+**/*.mov
+**/*.png
+**/*.jpg
+
+# runtime-created shares directory
+shares
